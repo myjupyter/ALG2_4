@@ -2,12 +2,7 @@
 
 template <typename Type>
 class AVLTree {
-  public:
-    AVLTree();
-    ~AVLTree();
-		size_t size() const;
-		void add(Type value);
-		
+
   private:
     class Node {
       private:
@@ -21,14 +16,24 @@ class AVLTree {
         ~Node();
         Node* balance(Node* p);
         int balance_factor() const;
-				size_t get_count() const;
-        void set_height();
+        size_t get_height() const;
+        size_t get_count(Node* node) const;
+        size_t get_k() const;
+				void set_height();
         void set_count();
+				Type search_k_stat_(Node* node, size_t k);
         Node* left_little_rotate(Node* q);
         Node* right_little_rotate(Node* p);
         Node* insert(Node* p, Type value);
     };
     Node* root_;
+  public:
+    AVLTree();
+    ~AVLTree();
+		size_t size() const;
+		size_t height() const;
+		void add(Type value);
+		Type search_k_stat(size_t k);
 };
 
 template <typename Type>
@@ -50,7 +55,8 @@ AVLTree<Type>::~AVLTree() {
 }
 
 template <typename Type>
-typename AVLTree<Type>::Node* AVLTree<Type>::Node::balance(Node* p) {
+typename AVLTree<Type>::Node* 
+AVLTree<Type>::Node::balance(Node* p) {
 	p->set_height();
 	p->set_count();
 	switch(p->balance_factor()) {
@@ -64,9 +70,8 @@ typename AVLTree<Type>::Node* AVLTree<Type>::Node::balance(Node* p) {
 				p->left_ = p->left_little_rotate(p->left_);
 			}
 			return p->right_little_rotate(p);
-		default: break;
+		default: return p;
 	}
-	return p;
 }
 
 template <typename Type>
@@ -81,7 +86,9 @@ AVLTree<Type>::Node::left_little_rotate(Node* q) {
   q->right_ = p->left_;
   p->left_ = q;
   q->set_height();
-  p->set_height();
+  q->set_count();
+	p->set_height();
+	p->set_count();
 	return p;
 }
 
@@ -92,7 +99,9 @@ AVLTree<Type>::Node::right_little_rotate(Node* p) {
   p->left_ = q->right_;
   q->right_ = p;
   p->set_height();
+	p->set_count();
   q->set_height();
+	q->set_count();
 	return q;
 }
 
@@ -109,13 +118,23 @@ void AVLTree<Type>::Node::set_count() {
 }
 
 template <typename Type>
-size_t AVLTree<Type>::Node::get_count() const {
-	return this->count_;
+size_t AVLTree<Type>::Node::get_count(Node* node) const {
+	return node ? node->count_ : 0;
 }
 
 template <typename Type>
 size_t AVLTree<Type>::size() const {
-	return root_->get_count();
+	return root_->get_count(root_);
+}
+
+template <typename Type> 
+size_t AVLTree<Type>::Node::get_height() const {
+	return this->height_;
+}
+
+template <typename Type>
+size_t AVLTree<Type>::height() const {
+	return root_->get_height();
 }
 
 template <typename Type>
@@ -132,21 +151,50 @@ AVLTree<Type>::Node::insert(Node* p, Type value) {
 	}
 	return this->balance(p);
 }
+        
 
 template <typename Type>
 void AVLTree<Type>::add(Type value) {
 	root_ = root_->insert(root_, value);
 }
+		
+
+template <typename Type>
+size_t AVLTree<Type>::Node::get_k() const {
+	return this->get_count(this->left_);
+}
+
+template <typename Type>
+Type AVLTree<Type>::Node::search_k_stat_(Node* node, size_t k) {
+	if(node->get_k() == k) {
+		return node->value_;
+	}
+	if(node->get_k() < k) {
+		return this->search_k_stat_(node->right_, k - node->get_count(node->left_) - 1);
+	}
+	else {
+		return this->search_k_stat_(node->left_, k);
+	}
+}
+
+template <typename Type>
+Type AVLTree<Type>::search_k_stat(size_t k) {
+	return root_->search_k_stat_(root_, k);
+}
+
 
 int main(int argc, char** argv) {
   AVLTree<int> tree;
-  tree.add(1);
-  tree.add(6);
-  tree.add(3);
-  tree.add(0);
-  tree.add(2);
-  tree.add(4);
-  tree.add(9);
+	int n = 0;
+	int value = 0;
+	std::cin >> n;
+	for(int i = 0; i < n; ++i) {
+		std::cin >> value;
+		tree.add(value);
+	}
+	std::cin >> n;
 	std::cout << tree.size() <<std::endl;
+	std::cout << tree.height() <<std::endl;
+	std::cout << tree.search_k_stat(n) << std::endl;
 	return 0;
 }
