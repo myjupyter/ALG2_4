@@ -1,4 +1,5 @@
 #include <iostream>
+#include <cassert>
 
 template <typename Type>
 class AVLTree {
@@ -14,7 +15,7 @@ class AVLTree {
       public:
         Node(Type value);
         ~Node();
-        Node* balance(Node* p);
+        Node* balance(Node* node);
         int balance_factor() const;
         size_t get_height() const;
         size_t get_count(Node* node) const;
@@ -24,7 +25,10 @@ class AVLTree {
 				Type search_k_stat_(Node* node, size_t k);
         Node* left_little_rotate(Node* q);
         Node* right_little_rotate(Node* p);
-        Node* insert(Node* p, Type value);
+        Node* insert(Node* node, Type value);
+				Node* search_minimal(Node* node);
+				Node* remove_minimal(Node* node, Type& value);
+				Node* remove(Node* node, Type value);
     };
     Node* root_;
   public:
@@ -33,6 +37,7 @@ class AVLTree {
 		size_t size() const;
 		size_t height() const;
 		void add(Type value);
+		void erase(Type value);
 		Type search_k_stat(size_t k);
 };
 
@@ -56,21 +61,22 @@ AVLTree<Type>::~AVLTree() {
 
 template <typename Type>
 typename AVLTree<Type>::Node* 
-AVLTree<Type>::Node::balance(Node* p) {
-	p->set_height();
-	p->set_count();
-	switch(p->balance_factor()) {
+AVLTree<Type>::Node::balance(Node* node) {
+	switch(node->balance_factor()) {
 		case 2:
-			if(p->right_->balance_factor() < 0) {
-				p->right_ = p->right_little_rotate(p->right_);
+			if(node->right_->balance_factor() < 0) {
+				node->right_ = node->right_little_rotate(node->right_);
 			}
-			return p->left_little_rotate(p);
+			return node->left_little_rotate(node);
 		case -2:
-			if(p->left_->balance_factor() > 0) {
-				p->left_ = p->left_little_rotate(p->left_);
+			if(node->left_->balance_factor() > 0) {
+				node->left_ = node->left_little_rotate(node->left_);
 			}
-			return p->right_little_rotate(p);
-		default: return p;
+			return node->right_little_rotate(node);
+		default:
+			node->set_height();
+			node->set_count();
+			return node;
 	}
 }
 
@@ -139,19 +145,78 @@ size_t AVLTree<Type>::height() const {
 
 template <typename Type>
 typename AVLTree<Type>::Node*
-AVLTree<Type>::Node::insert(Node* p, Type value) {
-	if(!p) {
+AVLTree<Type>::Node::insert(Node* node, Type value) {
+	if(!node) {
 		return new Node(value);
 	}
-	if(value < p->value_) {
-		p->left_ = insert(p->left_, value);
+	if(value < node->value_) {
+		node->left_ = insert(node->left_, value);
 	}
 	else {
-		p->right_ = insert(p->right_, value);
+		node->right_ = insert(node->right_, value);
 	}
-	return this->balance(p);
+	node->set_count();
+	return this->balance(node);
 }
         
+template <typename Type>
+typename AVLTree<Type>::Node*
+AVLTree<Type>::Node::search_minimal(Node* node) {
+	return node->left_ ? node->search_minimal(node->left_) : node;
+}
+
+template <typename Type>
+typename AVLTree<Type>::Node*
+AVLTree<Type>::Node::remove_minimal(Node* node, Type& value) {
+	assert(node);
+  if (node->left_) {
+		node->left_ = node->remove_minimal(node->left_, value);
+  } else {
+		value = node->value_;
+    Node* right = node->right_;
+    node->right_ = nullptr;
+    delete node;
+    return right;
+  }
+	node->set_count();
+  return node->balance(node);
+}
+
+template <typename Type>
+typename AVLTree<Type>::Node* 
+AVLTree<Type>::Node::remove(Node* node, Type value) {
+	if (node == nullptr) {
+		return nullptr;
+  }
+  if (value == node->value_) {
+		if (node->right_ == nullptr) {
+			Node* left = node->left_;
+			node->left_ = nullptr;
+      delete node;
+      return left;
+    }
+    if (node->left_ == nullptr) {
+			Node* right = node->right_;
+      node->right_ = nullptr;
+      delete node;
+      return right;
+    }
+    node->right_ = node->right_->remove_minimal(node->right_, node->value_);
+  }
+	else if (value < node->value_) {
+		node->left_ = node->left_->remove_minimal(node->left_, value);
+  } 
+	else {
+    node->right_ = node->right_->remove_minimal(node->right_, value);
+  }
+	node->set_count();
+	return node->balance(node);
+}
+
+template <typename Type>
+void AVLTree<Type>::erase(Type value) {
+	root_ = root_->remove(root_, value);
+}
 
 template <typename Type>
 void AVLTree<Type>::add(Type value) {
@@ -161,7 +226,7 @@ void AVLTree<Type>::add(Type value) {
 
 template <typename Type>
 size_t AVLTree<Type>::Node::get_k() const {
-	return this->get_count(this->left_);
+	return this->get_count(left_);
 }
 
 template <typename Type>
@@ -179,22 +244,21 @@ Type AVLTree<Type>::Node::search_k_stat_(Node* node, size_t k) {
 
 template <typename Type>
 Type AVLTree<Type>::search_k_stat(size_t k) {
+	assert(k < root_->get_count(root_));
 	return root_->search_k_stat_(root_, k);
 }
-
 
 int main(int argc, char** argv) {
   AVLTree<int> tree;
 	int n = 0;
 	int value = 0;
+	unsigned int k = 0;
 	std::cin >> n;
 	for(int i = 0; i < n; ++i) {
-		std::cin >> value;
-		tree.add(value);
+		std::cin >> value >> k;
+		if(value > 0) tree.add(value);
+		else					tree.erase(-value);
+		std::cout << tree.search_k_stat(k) << std::endl;
 	}
-	std::cin >> n;
-	std::cout << tree.size() <<std::endl;
-	std::cout << tree.height() <<std::endl;
-	std::cout << tree.search_k_stat(n) << std::endl;
 	return 0;
 }
